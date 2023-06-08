@@ -8,12 +8,14 @@ import requests
 import os
 from dotenv import load_dotenv
 import glob
+from flask_cors import CORS
 
 load_dotenv()  # Load environment variables from .env file
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))  # This is your Project Root
 
 app = Flask(__name__)
+CORS(app)
 app.static_folder = "public"
 
 
@@ -129,7 +131,9 @@ def big_five():
     from utils.text import download_txt
     from tools.big_five.report import handle_report
 
-    interviewid = request.args.get("interviewid")
+    employeeid = request.args.get("employee_id")
+    employeename = request.args.get("employee_name")
+    interviewid = request.args.get("interview_id")
     video_url = (
         f"{os.getenv('NODEJS_ENDPOINT')}public/interview/{interviewid}/video.webm"
     )
@@ -178,9 +182,9 @@ def big_five():
         destPath + "video.mp4", destPath + "introduction.mp4", destPath + "main.mp4", 90
     )
 
-    handle_big_five(interviewid)
-    handle_report(interviewid)
-    return "hello"
+    result = handle_big_five(interviewid)
+    handle_report(employeeid, employeename, interviewid)
+    return jsonify(result), 200
 
 
 if __name__ == "__main__":

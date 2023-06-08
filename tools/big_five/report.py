@@ -26,7 +26,7 @@ def convert_docx_to_pdf(docx_file, pdf_file):
         print(f"An error occurred: {str(e)}")
 
 
-def handle_report(interview_id: str):
+def handle_report(employeeid: int, employeename: str, interview_id: str):
     current_path = os.path.dirname(__file__) + "/"
     folder_path = f"./public/interview/{interview_id}/"
     docx_path = folder_path + "report.docx"
@@ -52,9 +52,9 @@ def handle_report(interview_id: str):
         text = paragraph.text
         # Cái này phải là ID chứ ví dụ video số 5 là 005 chứ sao em set cứng
         # dạ e mới làm trên 1 người e chưa cho chạy vòng lặp á a
-        new_text = text[:9] + "105" + text[9:]
+        new_text = text[:9] + employeeid + text[9:]
         paragraph.text = new_text
-        name_author = "Đặng Minh Quân"
+        name_author = employeename
         # In ra nội dung của đoạn văn
         text = paragraph.text
 

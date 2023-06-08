@@ -9,6 +9,9 @@ from matplotlib.projections import register_projection
 from matplotlib.spines import Spine
 from matplotlib.transforms import Affine2D
 import os, sys
+import json
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 sys.path.append(os.path.abspath(os.path.join("..", "..")))
 
@@ -398,26 +401,8 @@ def BigFiveComment(result, current_path):
 ################################################################################################
 
 
-def handle_big_five(interview_id: str):
-    current_path = os.path.dirname(__file__) + "/"
-    file_qa_path = f"./public/interview/{interview_id}/"
-    with open(file_qa_path + "qa.txt", "r") as file:
-        # Initialize an empty array
-        values = []
-
-        # Read the file line by line and append each numeric value to the array
-        for line in file:
-            numeric_value = int(line.strip())  # Convert line to a float
-            values.append(numeric_value)
-    print("Person 1")
-    drawGraph(Avg_Inverse_Result(BigFiveFormula(values)), 1, file_qa_path)
-
-    file_result_path = file_qa_path + "result.txt"
+def to_result_txt(Result: list, Comment: list, file_result_path: str):
     with open(file_result_path, "w", encoding="utf-8") as file:
-        Result = Avg_Inverse_Result(BigFiveFormula(values))
-        Comment = BigFiveComment(
-            Avg_Inverse_Result(BigFiveFormula(values)), current_path
-        )
         file.write("Extroversion Score: " + str(int(Result[0][0])) + "/40\n")
         file.write(str(Comment[0]) + "\n")
         file.write("Agreeableness Score: " + str(int(Result[1][0])) + "/40\n")
@@ -428,3 +413,64 @@ def handle_big_five(interview_id: str):
         file.write(str(Comment[3]) + "\n")
         file.write("Openness to Experience Score: " + str(int(Result[4][0])) + "/40\n")
         file.write(str(Comment[4]) + "\n")
+
+
+# ########
+
+
+def to_json_txt(Result: list, Comment: list, file_result_path: str):
+    # Prepare the data to be saved as JSON
+    data = {
+        "Extroversion Score": int(Result[0][0]),
+        "Extroversion Comment": Comment[0].replace("Extroversion Comment: ", ""),
+        "Agreeableness Score": int(Result[1][0]),
+        "Agreeableness Comment": Comment[1].replace("Agreeableness Comment: ", ""),
+        "Conscientiousness Score": int(Result[2][0]),
+        "Conscientiousness Comment": Comment[2].replace(
+            "Conscientiousness Comment: ", ""
+        ),
+        "Neuroticism Score": int(Result[3][0]),
+        "Neuroticism Comment": Comment[3].replace("Neuroticism Comment: ", ""),
+        "Openness to Experience Score": int(Result[4][0]),
+        "Openness to Experience Comment": Comment[4].replace(
+            "Openness to Experience Comment: ", ""
+        ),
+    }
+
+    # Save the data as JSON
+    with open(file_result_path, "w", encoding="utf-8") as file:
+        json.dump(data, file, ensure_ascii=False)
+    return data
+
+
+# =============================================================================
+
+
+def handle_big_five(interview_id: str):
+    executor = ThreadPoolExecutor()
+    current_path = os.path.dirname(__file__) + "/"
+    file_qa_path = f"./public/interview/{interview_id}/"
+    with open(file_qa_path + "qa.txt", "r") as file:
+        # Initialize an empty array
+        values = []
+
+        # Read the file line by line and append each numeric value to the array
+        for line in file:
+            numeric_value = int(line.strip())  # Convert line to a float
+            values.append(numeric_value)
+
+    drawGraph(Avg_Inverse_Result(BigFiveFormula(values)), 1, file_qa_path)
+
+    file_result_txt_path = file_qa_path + "result.txt"
+    file_result_json_path = file_qa_path + "result.json"
+
+    Result = Avg_Inverse_Result(BigFiveFormula(values))
+    Comment = BigFiveComment(Avg_Inverse_Result(BigFiveFormula(values)), current_path)
+    txt_task = executor.submit(
+        partial(to_result_txt, Result, Comment, file_result_txt_path)
+    )
+    json_task = executor.submit(
+        partial(to_json_txt, Result, Comment, file_result_json_path)
+    )
+    txt_task.result()
+    return json_task.result()
