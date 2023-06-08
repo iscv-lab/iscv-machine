@@ -127,6 +127,7 @@ def big_five():
 
     from tools.big_five.index import handle_big_five
     from utils.text import download_txt
+    from tools.big_five.report import handle_report
 
     interviewid = request.args.get("interviewid")
     video_url = (
@@ -178,6 +179,7 @@ def big_five():
     )
 
     handle_big_five(interviewid)
+    handle_report(interviewid)
     return "hello"
 
 
