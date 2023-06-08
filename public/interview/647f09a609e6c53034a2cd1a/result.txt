@@ -1,0 +1,10 @@
+Extroversion Score: 22/40
+Extroversion Comment: Bạn có khả năng giao tiếp tốt, thái độ nhiệt tình trong công việc cũng như khả năng tạo ảnh hưởng đến người khác. Ngoài ra, bạn có tính nhiệt tình, năng động, giao tiếp tốt và thích thể hiện mình.
+Agreeableness Score: 33/40
+Agreeableness Comment: Bạn biết cách điều chỉnh  hành vi của mình để phù  hợp với người khác. Ngoài ra, bạn còn thân thiện, vui vẻ và cởi mở với tất cả mọi người xung quanh. 
+Conscientiousness Score: 32/40
+Conscientiousness Comment: Bạn có khả năng chịu áp lực cũng như sự nỗ lực và kiên trì, đồng thời bạn còn chân thành và  chăm chỉ làm việc. Ngoài ra, bạn là người tuân thủ quy tắc và thích nhà cửa sạch sẽ.
+Neuroticism Score: 17/40
+Neuroticism Comment: Bạn có khả năng kiểm soát cảm xúc, chịu áp lực cũng như những lo lắng trong đời sống và công việc.
+Openness to Experience Score: 27/40
+Openness to Experience Comment: Bạn là người có tính cá nhân cao, luôn khao khát trải nghiệm mới và theo đuổi những hoạt động trí tuệ. Ngoài ra, bạn hay mơ mộng nhiều.
