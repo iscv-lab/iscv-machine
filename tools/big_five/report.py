@@ -5,6 +5,7 @@ import os, sys
 from docx.shared import Cm
 from docx2pdf import convert
 import shutil
+from datetime import datetime
 
 sys.path.append(os.path.abspath(os.path.join("..", "..")))
 
@@ -258,6 +259,24 @@ def handle_report(employeeid: int, employeename: str, interview_id: str):
     text = paragraph.add_run(content[21:-1])
     for run in paragraph.runs:
         run.font.name = "Cambria"
+
+    # Thêm Ngày Tháng Năm Hiện tại
+    paragraph_index = 13
+
+    paragraph = document.paragraphs[paragraph_index]
+    # Ngày tháng năm hiện tại
+    day = datetime.now().day
+    month = datetime.now().month
+    year = datetime.now().year
+
+    text = paragraph.text
+    # Tạo chuỗi ngày tháng năm
+    ngay_thang_nam = f"{day} tháng {month} năm {year}"
+    paragraph.text += ngay_thang_nam
+    for run in paragraph.runs:
+        run.font.name = "Cambria"
+    for run in paragraph.runs:
+        run.font.size = Pt(11)
 
     # =================================================================
     document.save(folder_path + "report.docx")

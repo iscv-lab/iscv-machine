@@ -13,6 +13,8 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
+from utils.string import to_str
+
 sys.path.append(os.path.abspath(os.path.join("..", "..")))
 
 
@@ -394,7 +396,9 @@ def BigFiveComment(result, current_path):
     # Hiển thị đánh giá
     comments = []
     for i in range(5):
-        comments.append(df_final["Type"][i] + " Comment: " + df_final["Comment"][i])
+        comments.append(
+            df_final["Type"][i] + " Comment: " + to_str(df_final["Comment"][i])
+        )
     return comments
 
 
@@ -418,22 +422,22 @@ def to_result_txt(Result: list, Comment: list, file_result_path: str):
 # ########
 
 
-def to_json_txt(Result: list, Comment: list, file_result_path: str):
+def to_result_json(Result: list, Comment: list, file_result_path: str):
     # Prepare the data to be saved as JSON
     data = {
         "Extroversion Score": int(Result[0][0]),
-        "Extroversion Comment": Comment[0].replace("Extroversion Comment: ", ""),
+        "Extroversion Comment": int(Comment[0].replace("Extroversion Comment: ", "")),
         "Agreeableness Score": int(Result[1][0]),
-        "Agreeableness Comment": Comment[1].replace("Agreeableness Comment: ", ""),
+        "Agreeableness Comment": int(Comment[1].replace("Agreeableness Comment: ", "")),
         "Conscientiousness Score": int(Result[2][0]),
-        "Conscientiousness Comment": Comment[2].replace(
-            "Conscientiousness Comment: ", ""
+        "Conscientiousness Comment": int(
+            Comment[2].replace("Conscientiousness Comment: ", "")
         ),
         "Neuroticism Score": int(Result[3][0]),
-        "Neuroticism Comment": Comment[3].replace("Neuroticism Comment: ", ""),
+        "Neuroticism Comment": int(Comment[3].replace("Neuroticism Comment: ", "")),
         "Openness to Experience Score": int(Result[4][0]),
-        "Openness to Experience Comment": Comment[4].replace(
-            "Openness to Experience Comment: ", ""
+        "Openness to Experience Comment": int(
+            Comment[4].replace("Openness to Experience Comment: ", "")
         ),
     }
 
@@ -470,7 +474,7 @@ def handle_big_five(interview_id: str):
         partial(to_result_txt, Result, Comment, file_result_txt_path)
     )
     json_task = executor.submit(
-        partial(to_json_txt, Result, Comment, file_result_json_path)
+        partial(to_result_json, Result, Comment, file_result_json_path)
     )
     txt_task.result()
     return json_task.result()
