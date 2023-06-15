@@ -187,5 +187,12 @@ def big_five():
     return jsonify(result), 200
 
 
+@app.route("/big_five/video", methods=["GET"])
+def big_five_video():
+    from tools.big_five.bigfive_video import handle_video
+    handle_video()
+    return jsonify("hello"), 200
+
+
 if __name__ == "__main__":
     app.run()

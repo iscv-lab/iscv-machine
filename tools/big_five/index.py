@@ -426,17 +426,17 @@ def to_result_json(Result: list, Comment: list, file_result_path: str):
     # Prepare the data to be saved as JSON
     data = {
         "Extroversion Score": int(Result[0][0]),
-        "Extroversion Comment": int(Comment[0].replace("Extroversion Comment: ", "")),
+        "Extroversion Comment": (Comment[0].replace("Extroversion Comment: ", "")),
         "Agreeableness Score": int(Result[1][0]),
-        "Agreeableness Comment": int(Comment[1].replace("Agreeableness Comment: ", "")),
+        "Agreeableness Comment": (Comment[1].replace("Agreeableness Comment: ", "")),
         "Conscientiousness Score": int(Result[2][0]),
-        "Conscientiousness Comment": int(
+        "Conscientiousness Comment": (
             Comment[2].replace("Conscientiousness Comment: ", "")
         ),
         "Neuroticism Score": int(Result[3][0]),
-        "Neuroticism Comment": int(Comment[3].replace("Neuroticism Comment: ", "")),
+        "Neuroticism Comment": (Comment[3].replace("Neuroticism Comment: ", "")),
         "Openness to Experience Score": int(Result[4][0]),
-        "Openness to Experience Comment": int(
+        "Openness to Experience Comment": (
             Comment[4].replace("Openness to Experience Comment: ", "")
         ),
     }
