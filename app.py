@@ -278,5 +278,10 @@ def big_five_video():
     return jsonify("video_approved"), 202
 
 
+@app.route("/test", methods=["GET"])
+def test():
+    return jsonify("hello"), 200
+
+
 if __name__ == "__main__":
     app.run()
