@@ -9,6 +9,11 @@ import os
 from dotenv import load_dotenv
 import glob
 from flask_cors import CORS
+import asyncio
+import subprocess
+import threading
+import logging
+
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -189,8 +194,30 @@ def big_five():
 
 @app.route("/big_five/video", methods=["GET"])
 def big_five_video():
-    from tools.big_five.bigfive_video import handle_video
-    handle_video()
+    def run_subprocess():
+        # Configure logging for the subprocess
+        logging.basicConfig(
+            level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+        )
+
+        # Define the command to run the Python file
+        command = ["python", "tools/big_five/demo_bigfive.py"]
+
+        # Start the subprocess
+        process = subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+
+        # Read and log the output
+        for line in iter(process.stdout.readline, b""):
+            logging.info(line.decode().strip())
+
+        # Wait for the subprocess to complete
+        process.wait()
+
+    # Run the subprocess in a separate thread
+    subprocess_thread = threading.Thread(target=run_subprocess)
+    subprocess_thread.start()
     return jsonify("hello"), 200
 
 

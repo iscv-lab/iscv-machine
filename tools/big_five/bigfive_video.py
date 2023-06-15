@@ -1,9 +1,13 @@
 import sys, os
 from tools.big_five.BigFiveVisualModel import BigFiveVisualModel
 import sys
-import os
 import pathlib
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))  # This is your Project Root
+import os
+
+
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
 
 MIN_BRIGHT_PERCENT = 0.37
 CONTRAST_THRESH = 0.3
@@ -12,9 +16,8 @@ BLURRY_THRESH = 100
 
 def handle_video():
     model = BigFiveVisualModel(
-        model_path=f"{ROOT_DIR}/CNN_LSTM_model.h5", scale_min=0, scale_max=40
+        model_path=f"CNN_LSTM_model.h5", scale_min=0, scale_max=40
     )
-
     videos = ["examples/inputs/67_video.mp4"]
     for vid in videos:
         bigfive_result = model.predict_bigfive(
