@@ -127,6 +127,7 @@ def generate_text():
 def big_five_start():
     def run_subprocess(session_id):
         thread_log()
+        # load_dotenv()
         from utils.video import (
             download_webm,
             convert_webm_to_mp4,
@@ -191,6 +192,7 @@ def big_five_start():
                 destPath + "main.mp4",
                 90,
             )
+            print(f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/started?session_id={session_id}")
             response = requests.get(
                 f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/started?session_id={session_id}"
             )
@@ -209,7 +211,7 @@ def big_five_start():
 
 
 @app.route("/big_five/audio", methods=["GET"])
-def big_five_audio(args):
+def big_five_audio():
     from tools.big_five.audio import handle_big_five
 
     def run_subprocess(session_id):
@@ -235,7 +237,7 @@ def big_five_audio(args):
 
 @app.route("/big_five/video", methods=["GET"])
 def big_five_video():
-    session_id = request.args.get("session_id")
+    session_id: str = request.args.get("session_id")
 
     def run_subprocess(session_id):
         # Configure logging for the subprocess

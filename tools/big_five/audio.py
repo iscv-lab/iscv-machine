@@ -1,6 +1,7 @@
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, RegularPolygon
 from matplotlib.path import Path
@@ -12,10 +13,11 @@ import os, sys
 import json
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-
 from utils.string import to_str
 
 sys.path.append(os.path.abspath(os.path.join("..", "..")))
+
+matplotlib.use('agg')
 
 
 O_scaler = MinMaxScaler(feature_range=(-3.2, 2.3))
@@ -425,18 +427,18 @@ def to_result_txt(Result: list, Comment: list, file_result_path: str):
 def to_result_json(Result: list, Comment: list, file_result_path: str):
     # Prepare the data to be saved as JSON
     data = {
-        "Extroversion Score": int(Result[0][0]),
-        "Extroversion Comment": (Comment[0].replace("Extroversion Comment: ", "")),
-        "Agreeableness Score": int(Result[1][0]),
-        "Agreeableness Comment": (Comment[1].replace("Agreeableness Comment: ", "")),
-        "Conscientiousness Score": int(Result[2][0]),
-        "Conscientiousness Comment": (
+        "e": int(Result[0][0]),
+        "ec": (Comment[0].replace("Extroversion Comment: ", "")),
+        "a": int(Result[1][0]),
+        "ac": (Comment[1].replace("Agreeableness Comment: ", "")),
+        "c": int(Result[2][0]),
+        "cc": (
             Comment[2].replace("Conscientiousness Comment: ", "")
         ),
-        "Neuroticism Score": int(Result[3][0]),
-        "Neuroticism Comment": (Comment[3].replace("Neuroticism Comment: ", "")),
-        "Openness to Experience Score": int(Result[4][0]),
-        "Openness to Experience Comment": (
+        "n": int(Result[3][0]),
+        "nc": (Comment[3].replace("Neuroticism Comment: ", "")),
+        "o": int(Result[4][0]),
+        "oc": (
             Comment[4].replace("Openness to Experience Comment: ", "")
         ),
     }
@@ -466,7 +468,7 @@ def handle_big_five(session_id: str):
     drawGraph(Avg_Inverse_Result(BigFiveFormula(values)), 1, file_qa_path)
 
     file_result_txt_path = file_qa_path + "result.txt"
-    file_result_json_path = file_qa_path + "result.json"
+    file_result_json_path = file_qa_path + "audio.json"
 
     Result = Avg_Inverse_Result(BigFiveFormula(values))
     Comment = BigFiveComment(Avg_Inverse_Result(BigFiveFormula(values)), current_path)
