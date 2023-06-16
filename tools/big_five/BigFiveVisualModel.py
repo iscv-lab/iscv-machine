@@ -1,23 +1,25 @@
 import sys, os
-
-
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
 sys.path.append(os.path.abspath(os.path.join('3DDFA_V2')))
 
-from tensorflow.keras.models import load_model
-from myutils.model_function import format_3d_landmarks_by_frame, compute_data_features
+from myutils.model_function import model_from_json, format_3d_landmarks_by_frame, compute_data_features, compute_frame_difference
 from myutils.landmarks_processing import translate_face_to_origin, rotate_face_to_match_z_axis, rotate_face_to_parallel_x_axis
 from myutils.detect3d import detect_3d_with_quality_assessment
 
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
+import joblib
 
 class BigFiveVisualModel(object):
 
-    def __init__(self, model_path, scale_min = 0, scale_max = 40, dataset_min = -5, dataset_max = 5):
-        self.model = load_model(model_path)
+    def __init__(self, model_weights_path, model_architect_path, input_scaler_path, scale_min = 0, scale_max = 40, dataset_min = -4, dataset_max = 4):
+        with open(model_architect_path, "r") as json_file:
+            loaded_model_json = json_file.read()
+            self.model = model_from_json(loaded_model_json)
+            self.model.load_weights(model_weights_path)
         min_max_array = np.array([dataset_min, dataset_max]).reshape(-1, 1)
         self.scaler = MinMaxScaler(feature_range=(scale_min, scale_max)).fit(min_max_array)
+        self.input_scaler = joblib.load(input_scaler_path)
 
     def predict_bigfive(self, video_path,
                         max_frame: int = 500, 
@@ -80,7 +82,12 @@ class BigFiveVisualModel(object):
 
             print("Computing features")
             # Compute features
-            X_data = compute_data_features(face_data_list)
+            X_data = compute_frame_difference(face_data_list)
+            X_data = compute_data_features(X_data)
+            # print(X_data)
+
+            # Scale input data
+            X_data = self.input_scaler.transform(X_data.reshape(1, X_data.shape[0]))
             X_data = X_data.reshape(1, 24, 17, 1)
 
             # Prediction
@@ -88,6 +95,7 @@ class BigFiveVisualModel(object):
             y_pred = y_pred[0]
 
             # Scale score, default scale range is 0->40
+            print(y_pred)
             y_pred = self.scale_score(y_pred)
 
             return y_pred

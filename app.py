@@ -175,15 +175,15 @@ def big_five_start():
                     convert_webm_to_mp4, destPath + "video.webm", destPath + "video.mp4"
                 )
             )
-            mp3_task = executor.submit(
-                partial(
-                    convert_webm_to_mp3, destPath + "video.webm", destPath + "audio.mp3"
-                )
-            )
+            # mp3_task = executor.submit(
+            #     partial(
+            #         convert_webm_to_mp3, destPath + "video.webm", destPath + "audio.mp3"
+            #     )
+            # )
 
             # Wait for the tasks to complete
             mp4_task.result()
-            mp3_task.result()
+            # mp3_task.result()
 
             # Split the video
             split_video(
@@ -192,7 +192,9 @@ def big_five_start():
                 destPath + "main.mp4",
                 90,
             )
-            print(f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/started?session_id={session_id}")
+            print(
+                f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/started?session_id={session_id}"
+            )
             response = requests.get(
                 f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/started?session_id={session_id}"
             )
@@ -212,12 +214,12 @@ def big_five_start():
 
 @app.route("/big_five/audio", methods=["GET"])
 def big_five_audio():
-    from tools.big_five.audio import handle_big_five
+    from tools.big_five.audio import handle_big_five_audio
 
     def run_subprocess(session_id):
         thread_log()
         try:
-            handle_big_five(session_id)
+            handle_big_five_audio(session_id)
             response = requests.get(
                 f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/audio?session_id={session_id}"
             )
@@ -237,7 +239,7 @@ def big_five_audio():
 
 @app.route("/big_five/video", methods=["GET"])
 def big_five_video():
-    session_id: str = request.args.get("session_id")
+    session_id: int = request.args.get("session_id")
 
     def run_subprocess(session_id):
         # Configure logging for the subprocess
@@ -278,6 +280,17 @@ def big_five_video():
     subprocess_thread = threading.Thread(target=run_subprocess, args=(session_id,))
     subprocess_thread.start()
     return jsonify("video_approved"), 202
+
+
+@app.route("/big_five/report", methods=["GET"])
+async def big_five_report():
+    from tools.big_five.report import handle_report
+    print("asdasd")
+    employee_id: int = request.args.get("employee_id")
+    employee_name: int = request.args.get("employee_name")
+    session_id: int = request.args.get("session_id")
+    await handle_report(employee_id, employee_name, session_id)
+    return jsonify("success"), 200
 
 
 @app.route("/test", methods=["GET"])
