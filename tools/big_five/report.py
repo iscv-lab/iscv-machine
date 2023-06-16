@@ -21,6 +21,7 @@ import aiofiles
 import pandas as pd
 from utils.string import to_str
 from sklearn.preprocessing import MinMaxScaler
+import subprocess
 
 sys.path.append(os.path.abspath(os.path.join("..", "..")))
 matplotlib.use("agg")
@@ -162,7 +163,8 @@ def create_docx_if_not_exist(file_path):
 
 def convert_docx_to_pdf(docx_file, pdf_file):
     try:
-        convert(docx_file, pdf_file)
+        subprocess.run(["unoconv", "-f", "pdf", "-o", pdf_file, docx_file])
+        # convert(docx_file, pdf_file)
         print("Conversion successful!")
     except Exception as e:
         print(f"An error occurred: {str(e)}")

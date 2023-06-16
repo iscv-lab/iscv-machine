@@ -111,6 +111,7 @@ def BigFiveFormula(calculation):
         + calculation[40]
         - calculation[45]
     )
+    print("E_score", E_score)
 
     # E_score_scale = ScoreMinMaxScaler(E_score, "Extroversion")
 
@@ -250,7 +251,5 @@ def handle_big_five_audio(session_id: str):
     # drawGraph(Avg_Inverse_Result(BigFiveFormula(values)), 1, file_qa_path)
 
     file_result_json_path = file_qa_path + "audio.json"
-    print("aaaa")
     Result = BigFiveFormula(values)
-    print("Result", Result)
     return to_result_json(Result, file_result_json_path)

@@ -17,10 +17,10 @@ parser.add_argument("--param1", type=int, help="Parameter 1 description")
 args = parser.parse_args()
 
 # Access the input parameters
-sesion_id = args.param1
+session_id = args.param1
 
 # Use the input parameters in your script
-print("Parameter 1:", sesion_id)
+print("Parameter 1:", session_id)
 
 from BigFiveVisualModel import BigFiveVisualModel
 
@@ -38,7 +38,7 @@ model = BigFiveVisualModel(
 )
 
 videos = [
-    f"../../public/interview/{sesion_id}/main.mp4",
+    f"../../public/interview/{session_id}/main.mp4",
 ]
 
 for vid in videos:
@@ -64,6 +64,6 @@ for vid in videos:
 
     # Save the data as JSON
     with open(
-        f"../../public/interview/{sesion_id}/video.json", "w", encoding="utf-8"
+        f"../../public/interview/{session_id}/video.json", "w", encoding="utf-8"
     ) as file:
         json.dump(data, file, allow_nan=False)
