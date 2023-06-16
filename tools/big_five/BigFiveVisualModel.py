@@ -4,7 +4,7 @@ sys.path.append(os.path.abspath(os.path.join('3DDFA_V2')))
 
 from myutils.model_function import model_from_json, format_3d_landmarks_by_frame, compute_data_features, compute_frame_difference
 from myutils.landmarks_processing import translate_face_to_origin, rotate_face_to_match_z_axis, rotate_face_to_parallel_x_axis
-from myutils.detect3d import detect_3d_with_quality_assessment
+from myutils.detect3d import detect_3d_landmarks, detect_3d_with_quality_assessment_2
 
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
@@ -22,12 +22,8 @@ class BigFiveVisualModel(object):
         self.input_scaler = joblib.load(input_scaler_path)
 
     def predict_bigfive(self, video_path,
-                        max_frame: int = 500, 
-                        max_error: int = 100, 
-                        min_bright_percent: float = 0.37, 
-                        contrast_thresh: float = 0.3, 
-                        blurry_thresh: int = 100, 
-                        skip_from_frame: int = 90, 
+                        frame_num_to_extract: int = 500, 
+                        start_from_frame: int = 90, 
                         config: str = 'configs/mb1_120x120.yml', 
                         mode: str='cpu', 
                         opt: str = '2d_sparse', 
@@ -38,12 +34,8 @@ class BigFiveVisualModel(object):
         Parameters:
         ------------------------
         video_path: Path to video
-        max_frame: Number of frames to extract
-        max_error: Max error count for video. If error count > max_error, process will be stopped
-        min_bright_percent: Threshold to determine if face image is bright or dark
-        contrast_thresh: Threshold to determine if frame is low contrast or not
-        blurry_thresh: Threshold to determine if frame is blurry or not
-        skip_from_frame: Skip some frame at start video
+        frame_num_to_extract: Number of frames to extract
+        start_from_frame: Skip some frame at start video
         mode: CPU or GPU, default is CPU
         export_video_result: If this is true, video result of 3d landmarks detection will be saved in examples/results folder
         ------------------------
@@ -51,19 +43,16 @@ class BigFiveVisualModel(object):
         print("Processing video: ", video_path)
         print("Detecting 3d landmarks")
         try:
+        # if True:
             # Detect 3d landmarks on face
-            landmarks_data_list = detect_3d_with_quality_assessment(video_fp=video_path,
-                                                                    max_frame=max_frame, 
-                                                                    max_error=max_error, 
-                                                                    min_bright_percent=min_bright_percent, 
-                                                                    contrast_thresh=contrast_thresh, 
-                                                                    blurry_thresh=blurry_thresh, 
-                                                                    skip_from_frame=skip_from_frame, 
-                                                                    config=config, 
-                                                                    mode=mode, 
-                                                                    opt=opt, 
-                                                                    onnx=onnx, 
-                                                                    export_video_result=export_video_result)
+            landmarks_data_list = detect_3d_landmarks(video_fp=video_path,
+                                                        frame_num_to_extract=frame_num_to_extract, 
+                                                        start_from_frame=start_from_frame, 
+                                                        config=config, 
+                                                        mode=mode, 
+                                                        opt=opt, 
+                                                        onnx=onnx, 
+                                                        export_video_result=export_video_result)
 
             if landmarks_data_list == None:
                 return None
@@ -95,7 +84,7 @@ class BigFiveVisualModel(object):
             y_pred = y_pred[0]
 
             # Scale score, default scale range is 0->40
-            print(y_pred)
+            print('Raw output:', y_pred)
             y_pred = self.scale_score(y_pred)
 
             return y_pred

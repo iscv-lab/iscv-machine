@@ -24,7 +24,6 @@ print("Parameter 1:", session_id)
 
 from BigFiveVisualModel import BigFiveVisualModel
 
-
 MIN_BRIGHT_PERCENT = 0.37
 CONTRAST_THRESH = 0.3
 BLURRY_THRESH = 100
@@ -37,20 +36,15 @@ model = BigFiveVisualModel(
     scale_max=40,
 )
 
-videos = [
-    f"../../public/interview/{session_id}/main.mp4",
-]
+videos = [f"../../public/interview/{session_id}/main.mp4"]
 
 for vid in videos:
+    # frame_num_to_extract=700 : lấy 700 frames
+    # start_from_frame=100: skip 100 frames đầu tiên (dính đoạn mở đầu msteams)
     bigfive_result = model.predict_bigfive(
-        video_path=vid,
-        skip_from_frame=90,  # -1 là ko skip gì hết
-        max_frame=100,  # lấy 500 frame để predict
-        max_error=100,  # cho phép tối đa 100 frame bị lỗi
-        min_bright_percent=MIN_BRIGHT_PERCENT,
-        contrast_thresh=CONTRAST_THRESH,
-        blurry_thresh=BLURRY_THRESH,
+        video_path=vid, frame_num_to_extract=500, start_from_frame=0
     )
+
     print("------------------------------\nResult of video {0}:".format(vid))
     print("O-C-E-A-N:", bigfive_result)
     print("------------------------------\n")

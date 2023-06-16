@@ -6,6 +6,7 @@ import sys
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+from imutils.video import FPS
 
 from FaceBoxes import FaceBoxes
 from TDDFA import TDDFA
@@ -23,6 +24,106 @@ from myutils.video_quality import variance_of_laplacian, mean_percent_bright
 
 from skimage.exposure import is_low_contrast
 
+
+
+def detect_3d_landmarks(video_fp, frame_num_to_extract=500, start_from_frame=-1, config: str = 'configs/mb1_120x120.yml', mode: str='cpu', opt: str = '2d_sparse', onnx: bool = True, export_video_result: bool=False):
+    opt_type = ['2d_sparse', '3d']
+    if opt not in opt_type:
+        raise ValueError("Invalid opt. Expected one of: %s" % opt_type)
+
+    mode_type = ['cpu', 'gpu']
+    if mode not in mode_type:
+        raise ValueError("Invalid mode. Expected one of: %s" % mode_type)
+
+    cfg = yaml.load(open(config), Loader=yaml.SafeLoader)
+
+    # Init FaceBoxes and TDDFA, recommend using onnx flag
+    if onnx:
+        import os
+        os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+        os.environ['OMP_NUM_THREADS'] = '4'
+
+        from FaceBoxes.FaceBoxes_ONNX import FaceBoxes_ONNX
+        from TDDFA_ONNX import TDDFA_ONNX
+
+        face_boxes = FaceBoxes_ONNX()
+        tddfa = TDDFA_ONNX(**cfg)
+    else:
+        gpu_mode = mode == 'gpu'
+        tddfa = TDDFA(gpu_mode=gpu_mode, **cfg)
+        face_boxes = FaceBoxes()
+
+    # Given a video path
+    fn = video_fp.split('/')[-1]
+    cap = cv2.VideoCapture(video_fp)
+    length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = int(cap.get(5))
+    jump = np.round(fps/15)
+    # print('[INFO] Total frames:', length)
+    # print('[INFO] FPS:', fps)
+
+    # Init list to store all verbose data
+    landmarks_data = []
+
+    # run
+    dense_flag = opt in ('3d',)
+    pre_ver = None
+
+    frame_count = 0
+    first_face = False
+    i = -1
+    fps = FPS().start()
+    while ((frame_count < frame_num_to_extract) & (i+1 < length)):
+        i += 1
+        # Read frame
+        success, frame = cap.read()
+        fps.update()
+        if (success == False) | (i <= start_from_frame) | (i % jump != 0):
+            continue
+        
+        frame_bgr = frame
+        if first_face == False:
+            boxes = face_boxes(frame_bgr)
+            if len(boxes) <= 0:
+                continue
+            boxes = [boxes[0]]
+            param_lst, roi_box_lst = tddfa(frame_bgr, boxes)
+            ver = tddfa.recon_vers(param_lst, roi_box_lst, dense_flag=dense_flag)[0]
+
+            # refine
+            param_lst, roi_box_lst = tddfa(frame_bgr, [ver], crop_policy='landmark')
+            ver = tddfa.recon_vers(param_lst, roi_box_lst, dense_flag=dense_flag)[0]
+            first_face = True
+        else:
+            param_lst, roi_box_lst = tddfa(frame_bgr, [pre_ver], crop_policy='landmark')
+
+            roi_box = roi_box_lst[0]
+            if abs(roi_box[2] - roi_box[0]) * abs(roi_box[3] - roi_box[1]) < 2020:
+                boxes = face_boxes(frame_bgr)
+                if len(boxes) <= 0:
+                    continue
+                boxes = [boxes[0]]
+                param_lst, roi_box_lst = tddfa(frame_bgr, boxes)
+
+            ver = tddfa.recon_vers(param_lst, roi_box_lst, dense_flag=dense_flag)[0]
+        
+        pre_ver = ver  # for tracking
+
+        landmarks_data.append(ver)
+        frame_count += 1
+
+    fps.stop()
+    
+    # if frame_count < frame_num_to_extract:
+    #     print("[FAIL] Can not extract enough {0} frames".format(frame_num_to_extract))
+    #     return None
+
+    print("[INFO] number of extracted frame:", frame_count)
+    print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
+    # print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
+    return landmarks_data
+
+#region Deprecated functions
 def detect_3d_landmarks_video(video_fp, config: str = 'configs/mb1_120x120.yml', mode: str='cpu', opt: str = '2d_sparse', onnx: bool = True, export_video_result: bool=False):
     opt_type = ['2d_sparse', '3d']
     if opt not in opt_type:
@@ -180,7 +281,7 @@ def detect_3d_landmarks_image(img_fp, config: str = 'configs/mb1_120x120.yml', m
     
     return ver_lst
 
-def detect_3d_with_quality_assessment(video_fp, max_frame=00, max_error=100, min_bright_percent=0.37, contrast_thresh=0.3, blurry_thresh=100, skip_from_frame=-1, config: str = 'configs/mb1_120x120.yml', mode: str='cpu', opt: str = '2d_sparse', onnx: bool = True, export_video_result: bool=False):
+def detect_3d_with_quality_assessment_2(video_fp, max_frame=500, max_error=100, min_bright_percent=0.37, contrast_thresh=0.3, blurry_thresh=100, skip_from_frame=-1, config: str = 'configs/mb1_120x120.yml', mode: str='cpu', opt: str = '2d_sparse', onnx: bool = True, export_video_result: bool=False):
     opt_type = ['2d_sparse', '3d']
     if opt not in opt_type:
         raise ValueError("Invalid opt. Expected one of: %s" % opt_type)
@@ -208,11 +309,12 @@ def detect_3d_with_quality_assessment(video_fp, max_frame=00, max_error=100, min
         face_boxes = FaceBoxes()
 
     # Given a video path
+    # reader = imageio.get_reader(video_fp)
+    # fps = reader.get_meta_data()['fps']
+    cap = cv2.VideoCapture(video_fp)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+
     fn = video_fp.split('/')[-1]
-    reader = imageio.get_reader(video_fp)
-
-    fps = reader.get_meta_data()['fps']
-
     suffix = get_suffix(video_fp)
     video_wfp = f'examples/results/result_{fn.replace(suffix, "")}_{opt}.mp4'
     writer = imageio.get_writer(video_wfp, fps=fps)
@@ -230,13 +332,18 @@ def detect_3d_with_quality_assessment(video_fp, max_frame=00, max_error=100, min
     num_non_face = 0
     num_dark_face = 0
     frame_count = 0
+    i = -1
 
-    for i, frame in tqdm(enumerate(reader)):
+    fps = FPS().start()
+    while frame_count < max_frame:
+        success, frame = cap.read()
+        fps.update()
+        i += 1
         if i <= skip_from_frame:
             continue
         if num_error >= max_error:
             break
-
+            
         frame_bgr = frame[..., ::-1]  # RGB->BGR
         gray_image = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
 
@@ -300,13 +407,16 @@ def detect_3d_with_quality_assessment(video_fp, max_frame=00, max_error=100, min
             writer.append_data(res[..., ::-1])  # BGR->RGB
 
         frame_count += 1
-        if frame_count >= max_frame:
-            break
 
     writer.close()
+    # stop the timer and display FPS information
+    fps.stop()
+    print("[INFO] number of extracted frame:", frame_count)
+    print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
+    print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
 
     if num_error >= max_error:
-        print('ERROR: Video has more than {0} errors'.format(max_error))
+        print('[ERROR] video has more than {0} errors'.format(max_error))
         print('\t- {0} contrast'.format(num_contrast))
         print('\t- {0} blurry'.format(num_blurry))
         print('\t- {0} non-face'.format(num_non_face))
@@ -317,3 +427,4 @@ def detect_3d_with_quality_assessment(video_fp, max_frame=00, max_error=100, min
         print(f'Path to video result: {video_wfp}')
 
     return landmarks_data
+#endregion
