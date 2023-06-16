@@ -22,6 +22,7 @@ import pandas as pd
 from utils.string import to_str
 from sklearn.preprocessing import MinMaxScaler
 import subprocess
+import math
 
 sys.path.append(os.path.abspath(os.path.join("..", "..")))
 matplotlib.use("agg")
@@ -164,6 +165,17 @@ def create_docx_if_not_exist(file_path):
 def convert_docx_to_pdf(docx_file, pdf_file):
     try:
         subprocess.run(["unoconv", "-f", "pdf", "-o", pdf_file, docx_file])
+        # subprocess.run(
+        #     [
+        #         "soffice",
+        #         "--headless",
+        #         "--convert-to",
+        #         "pdf",
+        #         "--outdir",
+        #         pdf_file,
+        #         input_file,
+        #     ]
+        # )
         # convert(docx_file, pdf_file)
         print("Conversion successful!")
     except Exception as e:
@@ -178,7 +190,6 @@ async def handle_report(employee_id: int, employee_name: str, session_id: str):
     task2 = asyncio.create_task(BigFiveComment(data, current_path))
     results = await asyncio.gather(task1, task2)
     comments = results[1]
-    print(comments[0])
     result_path = folder_path + "result.txt"
     with open(result_path, "w", encoding="utf-8") as file:
         Comment = comments
@@ -239,7 +250,6 @@ async def handle_report(employee_id: int, employee_name: str, session_id: str):
                     text.font.italic = True
 
             # nó in nghiên cái ID luôn rồi a
-    print(paragraph.text)
 
     # =================================================================
     # Load dữ liệu vào bảng
@@ -561,11 +571,11 @@ async def average_big_five(path):
             "The Big Five Personality Score",
             [
                 [
-                    (audio_dict["e"] + video_dict["e"]) / 2,
-                    (audio_dict["a"] + video_dict["a"]) / 2,
-                    (audio_dict["c"] + video_dict["c"]) / 2,
-                    (audio_dict["n"] + video_dict["n"]) / 2,
-                    (audio_dict["o"] + video_dict["o"]) / 2,
+                    math.ceil((audio_dict["e"] + video_dict["e"]) / 2),
+                    math.ceil((audio_dict["a"] + video_dict["a"]) / 2),
+                    math.ceil((audio_dict["c"] + video_dict["c"]) / 2),
+                    math.ceil((audio_dict["n"] + video_dict["n"]) / 2),
+                    math.ceil((audio_dict["o"] + video_dict["o"]) / 2),
                 ]
             ],
         ),
@@ -609,6 +619,7 @@ async def BigFiveComment(result, current_path):
         ),
         columns=["Type", "Result"],
     )
+
     # Lưu dữ liệu đánh giá tính cách vào dataframe
     df_comment = pd.read_csv(current_path + "comments.csv")
 
@@ -620,6 +631,7 @@ async def BigFiveComment(result, current_path):
         & (df_merge["Result"] <= df_merge["EndScore"])
     ].reset_index()
     # Hiển thị đánh giá
+
     comments = []
     for i in range(5):
         comments.append(

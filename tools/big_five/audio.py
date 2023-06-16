@@ -111,7 +111,6 @@ def BigFiveFormula(calculation):
         + calculation[40]
         - calculation[45]
     )
-    print("E_score", E_score)
 
     # E_score_scale = ScoreMinMaxScaler(E_score, "Extroversion")
 
@@ -189,7 +188,6 @@ def BigFiveFormula(calculation):
     OCEAN_score_scale.append(C_score)
     OCEAN_score_scale.append(N_score)
     OCEAN_score_scale.append(O_score)
-    print(OCEAN_score_scale)
     return OCEAN_score_scale
 
 

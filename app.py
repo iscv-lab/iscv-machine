@@ -34,7 +34,7 @@ def post_data():
     request_data = request.get_json()
     # Extract the string "text" from the request body
     text = request_data.get("text")
-    print(text)
+
     response = {"message": "Data received successfully"}
     return jsonify(response), 200
 
@@ -209,7 +209,7 @@ def big_five_start():
     session_id = request.args.get("session_id")
     subprocess_thread = threading.Thread(target=run_subprocess, args=(session_id,))
     subprocess_thread.start()
-    return jsonify("approved"), 202
+    return jsonify("approved"), 200
 
 
 @app.route("/big_five/audio", methods=["GET"])
@@ -234,7 +234,7 @@ def big_five_audio():
     session_id = request.args.get("session_id")
     subprocess_thread = threading.Thread(target=run_subprocess, args=(session_id,))
     subprocess_thread.start()
-    return jsonify("audio_approved"), 202
+    return jsonify("audio_approved"), 200
 
 
 @app.route("/big_five/video", methods=["GET"])
@@ -279,13 +279,12 @@ def big_five_video():
     # Run the subprocess in a separate thread
     subprocess_thread = threading.Thread(target=run_subprocess, args=(session_id,))
     subprocess_thread.start()
-    return jsonify("video_approved"), 202
+    return jsonify("video_approved"), 200
 
 
 @app.route("/big_five/report", methods=["GET"])
 async def big_five_report():
     from tools.big_five.report import handle_report
-    print("asdasd")
     employee_id: int = request.args.get("employee_id")
     employee_name: int = request.args.get("employee_name")
     session_id: int = request.args.get("session_id")
