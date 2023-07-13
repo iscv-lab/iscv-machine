@@ -13,15 +13,21 @@ import asyncio
 import subprocess
 import threading
 import logging
+from utils.file import remove_files_async
 from utils.log import thread_log
+from tools.job.recommend import load_recommend_model
+
 
 load_dotenv()  # Load environment variables from .env file
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))  # This is your Project Root
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))  # This is your Project Root
 app = Flask(__name__)
 CORS(app)
 app.static_folder = "public"
+
+data_recommend, model_recommend = load_recommend_model()
 
 
 @app.route("/data", methods=["POST"])
@@ -190,7 +196,7 @@ def big_five_start():
                 destPath + "video.mp4",
                 destPath + "introduction.mp4",
                 destPath + "main.mp4",
-                90,
+                15,
             )
             print(
                 f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/started?session_id={session_id}"
@@ -199,10 +205,11 @@ def big_five_start():
                 f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/started?session_id={session_id}"
             )
             if response.status_code == 200:
-                print("POST request was successful")
                 print("Response:", response.json())
             else:
-                print("POST request failed with status code:", response.status_code)
+                print(
+                    "start POST request failed with status code:", response.status_code
+                )
         except Exception as e:
             print(e)
 
@@ -219,15 +226,15 @@ def big_five_audio():
     def run_subprocess(session_id):
         thread_log()
         try:
-            handle_big_five_audio(session_id)
-            response = requests.get(
-                f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/audio?session_id={session_id}"
+            result = handle_big_five_audio(session_id)
+            response = requests.post(
+                f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/audio?session_id={session_id}",
+                json=result,
             )
-            if response.status_code == 200:
-                print("POST request was successful")
-                print("Response:", response.json())
-            else:
-                print("POST request failed with status code:", response.status_code)
+            if response.status_code != 200:
+                print(
+                    "audio POST request failed with status code:", response.status_code
+                )
         except Exception as e:
             print(e)
 
@@ -245,51 +252,69 @@ def big_five_video():
         # Configure logging for the subprocess
         thread_log()
         try:
-            print(session_id)
-            # Define the command to run the Python file
-            command = [
-                "python",
-                "tools/big_five/video.py",
-                "--param1",
-                str(session_id),
-            ]
-
-            # Start the subprocess
-            process = subprocess.Popen(
-                command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
-
-            # Read and log the output
-            for line in iter(process.stdout.readline, b""):
-                logging.info(line.decode().strip())
-
-            # Wait for the subprocess to complete
-            process.wait()
             response = requests.get(
-                f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/video?session_id={session_id}"
+                f"{os.getenv('VIDEO_ENDPOINT')}get_video?session_id={session_id}"
             )
             if response.status_code == 200:
-                print("POST request was successful")
-                print("Response:", response.json())
+                result = response.json()
+                callback = requests.post(
+                    f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/video?session_id={session_id}",
+                    json=result,
+                )
+                if callback.status_code != 200:
+                    print(
+                        "video POST request failed with status code:",
+                        response.status_code,
+                    )
             else:
-                print("POST request failed with status code:", response.status_code)
+                print(
+                    "mini POST request failed with status code:", response.status_code
+                )
         except Exception as e:
             print(e)
+        # Run the subprocess in a separate thread
 
-    # Run the subprocess in a separate thread
     subprocess_thread = threading.Thread(target=run_subprocess, args=(session_id,))
     subprocess_thread.start()
     return jsonify("video_approved"), 200
 
 
-@app.route("/big_five/report", methods=["GET"])
+@app.route("/big_five/report", methods=["POST"])
 async def big_five_report():
     from tools.big_five.report import handle_report
-    employee_id: int = request.args.get("employee_id")
-    employee_name: int = request.args.get("employee_name")
-    session_id: int = request.args.get("session_id")
-    await handle_report(employee_id, employee_name, session_id)
+
+    print("start report")
+    data = request.get_json()
+    await handle_report(data)
     return jsonify("success"), 200
+
+
+@app.route("/big_five/clean", methods=["GET"])
+async def big_five_clean():
+    session_id: int = request.args.get("session_id")
+    folder_path = f"{ROOT_DIR}/public/interview/{session_id}/"
+    file_paths = [
+        folder_path + "chat.png",
+        folder_path + "introductrion.mp4",
+        folder_path + "main.mp4",
+        folder_path + "qa.txt",
+        folder_path + "report.docx",
+        folder_path + "video.mp4",
+        folder_path + "video.webm",
+    ]
+
+    await remove_files_async(file_paths)
+
+    return jsonify("success"), 200
+
+
+@app.route("/job/recommend", methods=["POST"])
+async def job_recommend():
+    from tools.job.recommend import recommended_jobs
+
+    data = request.get_json()
+    result = recommended_jobs(data["skills"], data_recommend, model_recommend)
+    return jsonify(result), 200
 
 
 @app.route("/test", methods=["GET"])
@@ -298,4 +323,4 @@ def test():
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="127.0.0.1", port=4002, debug=True)

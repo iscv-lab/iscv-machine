@@ -1,11 +1,9 @@
+from datetime import datetime
 from docx import Document
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_ALIGN_VERTICAL
 from docx.shared import Pt
 import os, sys
-from docx.shared import Cm
 from docx2pdf import convert
-import shutil
-from datetime import datetime
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -17,13 +15,10 @@ from matplotlib.spines import Spine
 from matplotlib.transforms import Affine2D
 import json
 import asyncio
-import aiofiles
 import pandas as pd
 from utils.string import to_str
 from sklearn.preprocessing import MinMaxScaler
 import subprocess
-import math
-
 sys.path.append(os.path.abspath(os.path.join("..", "..")))
 matplotlib.use("agg")
 
@@ -117,19 +112,6 @@ N_scaler = MinMaxScaler(feature_range=(-3.0, 2.0))
 
 
 def Avg_Inverse_Result(score_scale):
-    PEcv = -0.1
-    PAcv = -0.32
-    PCcv = -0.173
-    PNcv = -0.88
-    POcv = -0.174
-
-    # Average Result
-    # E_result=(score_scale[0]+PEcv)/2
-    # A_result=(score_scale[1]+PAcv)/2
-    # C_result=(score_scale[2]+PCcv)/2
-    # N_result=(score_scale[3]+PNcv)/2
-    # O_result=(score_scale[4]+POcv)/2
-
     E_result = score_scale[0]
     A_result = score_scale[1]
     C_result = score_scale[2]
@@ -164,318 +146,90 @@ def create_docx_if_not_exist(file_path):
 
 def convert_docx_to_pdf(docx_file, pdf_file):
     try:
-        subprocess.run(["unoconv", "-f", "pdf", "-o", pdf_file, docx_file])
-        # subprocess.run(
-        #     [
-        #         "soffice",
-        #         "--headless",
-        #         "--convert-to",
-        #         "pdf",
-        #         "--outdir",
-        #         pdf_file,
-        #         input_file,
-        #     ]
-        # )
+        pyuno_path = "/usr/bin/libreoffice/program/pyuno.so"
+        python_binary = "/root/iscv/machine/myconda/bin/python3"
+        # command = [
+        #     "python3",
+        #     "-m",
+        #     "unoconv",
+        #     "--pyuno",
+        #     pyuno_path,
+        #     "-f",
+        #     "pdf",
+        #     "-o",
+        #     pdf_file,
+        #     docx_file,
+        # ]
+        # subprocess.run(command)
+        subprocess.run(
+            [
+                "soffice",
+                "--headless",
+                "--convert-to",
+                "pdf",
+                "--outdir",
+                pdf_file,
+                docx_file,
+            ]
+        )
         # convert(docx_file, pdf_file)
         print("Conversion successful!")
     except Exception as e:
         print(f"An error occurred: {str(e)}")
 
 
-async def handle_report(employee_id: int, employee_name: str, session_id: str):
+async def read_qa(path):
+    with open(path, "r") as file:
+        lines = file.readlines()
+
+    result = []
+    item_count = 1
+
+    # Tạo danh sách từ điển với item tăng dần và value lấy từ file .txt
+    for line in lines:
+        value = (
+            line.strip()
+        )  # Lấy giá trị từ file .txt, xoá ký tự trống ở đầu và cuối dòng
+        if value:  # Kiểm tra nếu giá trị không rỗng
+            data = {"item": item_count, "value": value}
+            result.append(data)
+            item_count += 1
+    # In danh sách từ điển
+    return result
+
+
+async def handle_report(data):
+    session_id = data["sessionId"]
     current_path = os.path.dirname(__file__) + "/"
     folder_path = f"./public/interview/{session_id}/"
-    data = await average_big_five(folder_path)
-    task1 = asyncio.create_task(drawGraph(data, folder_path))
-    task2 = asyncio.create_task(BigFiveComment(data, current_path))
-    results = await asyncio.gather(task1, task2)
-    comments = results[1]
-    result_path = folder_path + "result.txt"
-    with open(result_path, "w", encoding="utf-8") as file:
-        Comment = comments
-        file.write("Extroversion Score: " + str(int(data[0][1][0][0])) + "/40\n")
-        file.write(str(Comment[0]) + "\n")
-        file.write("Agreeableness Score: " + str(int(data[0][1][0][1])) + "/40\n")
-        file.write(str(Comment[1]) + "\n")
-        file.write("Conscientiousness Score: " + str(int(data[0][1][0][2])) + "/40\n")
-        file.write(str(Comment[2]) + "\n")
-        file.write("Neuroticism Score: " + str(int(data[0][1][0][3])) + "/40\n")
-        file.write(str(Comment[3]) + "\n")
-        file.write(
-            "Openness to Experience Score: " + str(int(data[0][1][0][4])) + "/40\n"
-        )
-        file.write(str(Comment[4]) + "\n")
-
-    docx_path = folder_path + "report.docx"
-    shutil.copyfile(current_path + "template.docx", docx_path)
-    # Đường dẫn tới file .txt
     qa_path = folder_path + "qa.txt"
-
-    # Đọc dữ liệu từ file .txt
-    with open(qa_path, "r") as file:
-        qa_data = file.read()
-
-    with open(result_path, "r") as file:
-        result_data = file.read()
-    # create_docx_if_not_exist(docx_path)
-    # Load file .docx
-    document = Document(docx_path)
-
-    paragraph_index = 3
-    if paragraph_index < len(document.paragraphs):
-        # Truy cập vào đoạn văn cần xem
-        paragraph = document.paragraphs[paragraph_index]
-        text = paragraph.text
-        # Cái này phải là ID chứ ví dụ video số 5 là 005 chứ sao em set cứng
-        # dạ e mới làm trên 1 người e chưa cho chạy vòng lặp á a
-        new_text = text[:9] + employee_id + text[9:]
-        paragraph.text = new_text
-        name_author = employee_name
-        # In ra nội dung của đoạn văn
-        text = paragraph.text
-
-        for run in paragraph.runs:
-            run.font.name = "Cambria"
-        for run in paragraph.runs:
-            run.font.size = Pt(11)
-            run.font.bold = True
-            words = text.split()
-            for word in words:
-                # Kiểm tra nếu từ là "ID001"
-                if word == "-":
-                    text = paragraph.add_run(
-                        "Người thực hiện phỏng vấn: " + name_author + " "
-                    )
-                    # Đặt chữ in đậm
-                    text.font.italic = True
-
-            # nó in nghiên cái ID luôn rồi a
-
-    # =================================================================
-    # Load dữ liệu vào bảng
-
-    table_index = 1
-    table = document.tables[table_index]
-    for i in range(len(table.rows) - 1):
-        row_index = i + 1
-        column_index1 = 2
-        cell = table.cell(row_index, column_index1)
-        # Thêm dữ liệu vào ô
-        paragraph1 = cell.add_paragraph()
-        run = paragraph1.add_run(qa_data[i * 2])
-        if cell.text.startswith(""):
-            cell.text = cell.text.lstrip()
-
-    for i in range(len(table.rows) - 1):
-        row_index = i + 1
-        column_index1 = 6
-        cell = table.cell(row_index, column_index1)
-        k = (i + 25) * 2
-        # Thêm dữ liệu vào ô
-        paragraph1 = cell.add_paragraph()
-        run = paragraph1.add_run(qa_data[k])
-        if cell.text.startswith(""):
-            cell.text = cell.text.lstrip()
-    # Định dạng dữ liệu
-    column_index = 2
-    for row in table.rows:
-        cell = row.cells[column_index]
-        cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-        cell.paragraphs[0].alignment = WD_ALIGN_VERTICAL.CENTER
-
-        # In đậm dữ liệu và căn giữa trong ô
-        for paragraph in cell.paragraphs:
-            for run in paragraph.runs:
-                run.bold = True
-                paragraph.alignment = WD_ALIGN_VERTICAL.CENTER
-                run.font.name = "Cambria"
-
-    column_index = 6
-    for row in table.rows:
-        cell = row.cells[column_index]
-        cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-        cell.paragraphs[0].alignment = WD_ALIGN_VERTICAL.CENTER
-
-        # In đậm dữ liệu và căn giữa trong ô
-        for paragraph in cell.paragraphs:
-            for run in paragraph.runs:
-                run.bold = True
-                paragraph.alignment = WD_ALIGN_VERTICAL.CENTER
-                run.font.name = "Cambria"
-
-    # =================================================================
-    # Thêm hình ảnh
-
-    image_path = folder_path + "chart.png"
-    tables = document.tables
-    table_index = 2
-    row_index = 0
-    column_index = 0
-    table = tables[table_index]
-    cell = table.cell(row_index, column_index)
-    paragraph2 = cell.paragraphs[0]
-    run = paragraph2.add_run()
-    run.add_picture(image_path, width=Cm(5), height=Cm(5))
-    paragraph2.alignment = 1
-    # =================================================================
-    # Thêm chỉ số
-    with open(result_path, "r") as file:
-        lines = file.readlines()
-    table_index = 2
-    column_index = 2
-    # Openness
-    row_index = 1
-    table = tables[table_index]
-    cell = table.cell(row_index, column_index)
-    content = lines[8]
-    text = content[30:-1]
-    paragraph3 = cell.add_paragraph()
-    run = paragraph3.add_run(text)
-    if cell.text.startswith(""):
-        cell.text = cell.text.lstrip()
-    # Conscientiousness
-    row_index = 2
-    table = tables[table_index]
-    cell = table.cell(row_index, column_index)
-    content = lines[4]
-    text = content[25:-1]
-    paragraph3 = cell.add_paragraph()
-    run = paragraph3.add_run(text)
-    if cell.text.startswith(""):
-        cell.text = cell.text.lstrip()
-    # Extroversion
-    row_index = 3
-    table = tables[table_index]
-    cell = table.cell(row_index, column_index)
-    content = lines[0]
-    text = content[20:-1]
-    paragraph3 = cell.add_paragraph()
-    run = paragraph3.add_run(text)
-    if cell.text.startswith(""):
-        cell.text = cell.text.lstrip()
-    # Agreeableness
-    row_index = 4
-    table = tables[table_index]
-    cell = table.cell(row_index, column_index)
-    content = lines[2]
-    text = content[21:-1]
-    paragraph3 = cell.add_paragraph()
-    run = paragraph3.add_run(text)
-    if cell.text.startswith(""):
-        cell.text = cell.text.lstrip()
-    # Neuroticism
-    row_index = 5
-    table = tables[table_index]
-    cell = table.cell(row_index, column_index)
-    content = lines[6]
-    text = content[19:-1]
-    paragraph3 = cell.add_paragraph()
-    run = paragraph3.add_run(text)
-    if cell.text.startswith(""):
-        cell.text = cell.text.lstrip()
-
-    column_index = 2
-    for row in table.rows:
-        cell = row.cells[column_index]
-        cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-        cell.paragraphs[0].alignment = WD_ALIGN_VERTICAL.CENTER
-
-        # In đậm dữ liệu và căn giữa trong ô
-        for paragraph in cell.paragraphs:
-            for run in paragraph.runs:
-                run.bold = True
-                paragraph.alignment = WD_ALIGN_VERTICAL.CENTER
-                run.font.name = "Cambria"
-    # =================================================================
-    # Thêm kết luận
-
-    # Lấy đoạn Extroversion trong docx
-    paragraph_index = 8
-    paragraph = document.paragraphs[paragraph_index]
-    # Lấy Extroversion Comment trong txt
-    content = lines[1]
-    text = paragraph.add_run(content[22:-1])
-    for run in paragraph.runs:
-        run.font.name = "Cambria"
-
-    # Lấy đoạn Conscientiousness trong docx
-    paragraph_index = 9
-    paragraph = document.paragraphs[paragraph_index]
-    # Lấy Conscientiousness Comment trong txt
-    content = lines[5]
-    text = paragraph.add_run(content[27:-1])
-    for run in paragraph.runs:
-        run.font.name = "Cambria"
-
-    # Lấy đoạn Openness to Experience trong docx
-    paragraph_index = 10
-    paragraph = document.paragraphs[paragraph_index]
-    # Lấy Openness to Experience Comment trong txt
-    content = lines[9]
-    text = paragraph.add_run(content[32:-1])
-    for run in paragraph.runs:
-        run.font.name = "Cambria"
-
-    # Lấy đoạn Agreeableness trong docx
-    paragraph_index = 11
-    paragraph = document.paragraphs[paragraph_index]
-    # Lấy Openness to Agreeableness Comment trong txt
-    content = lines[3]
-    text = paragraph.add_run(content[23:-1])
-    for run in paragraph.runs:
-        run.font.name = "Cambria"
-
-    # Lấy đoạn Neuroticism trong docx
-    paragraph_index = 12
-    paragraph = document.paragraphs[paragraph_index]
-    # Lấy Openness to Neuroticism Comment trong txt
-    content = lines[7]
-    text = paragraph.add_run(content[21:-1])
-    for run in paragraph.runs:
-        run.font.name = "Cambria"
-
-    # Thêm Ngày Tháng Năm Hiện tại
-    paragraph_index = 13
-
-    paragraph = document.paragraphs[paragraph_index]
-    # Ngày tháng năm hiện tại
-    day = datetime.now().day
-    month = datetime.now().month
-    year = datetime.now().year
-
-    text = paragraph.text
-    # Tạo chuỗi ngày tháng năm
-    ngay_thang_nam = f"{day} tháng {month} năm {year}"
-    paragraph.text += ngay_thang_nam
-    for run in paragraph.runs:
-        run.font.name = "Cambria"
-    for run in paragraph.runs:
-        run.font.size = Pt(11)
-
-    # =================================================================
-    document.save(folder_path + "report.docx")
-
-    # =================================================================
-    # Đường dẫn tới file PDF
-    pdf_path = folder_path + "report.pdf"
-
-    convert_docx_to_pdf(docx_path, pdf_path)
+    avgscores = average_big_five(data["bigfive"])
+    task1 = asyncio.create_task(drawGraph(avgscores, folder_path))
+    task2 = asyncio.create_task(BigFiveComment(avgscores, current_path))
+    task3 = asyncio.create_task(read_qa(qa_path))
+    results = await asyncio.gather(task1, task2, task3)
+    comments = results[1]
+    qa = results[2]
+    input = {
+        "employeeId": data["employeeId"],
+        "employeeName": data["employeeName"],
+        "o": data["bigfive"]["o"],
+        "c": data["bigfive"]["c"],
+        "e": data["bigfive"]["e"],
+        "a": data["bigfive"]["a"],
+        "n": data["bigfive"]["n"],
+        "oc": comments["oc"],
+        "cc": comments["cc"],
+        "ec": comments["ec"],
+        "ac": comments["ac"],
+        "nc": comments["nc"],
+        "question": qa,
+    }
+    fill_word(input, current_path, folder_path)
+    convert_docx_to_pdf(folder_path + "report.docx", folder_path)
 
 
 def radar_factory(num_vars, frame="circle"):
-    """Create a radar chart with `num_vars` axes.
-
-    This function creates a RadarAxes projection and registers it.
-
-    Parameters
-    ----------
-    num_vars : int
-        Number of variables for radar chart.
-    frame : {'circle' | 'polygon'}
-        Shape of frame surrounding axes.
-
-    """
-    # calculate evenly-spaced axis angles
     theta = np.linspace(0, 2 * np.pi, num_vars, endpoint=False)
 
     class RadarAxes(PolarAxes):
@@ -549,16 +303,7 @@ def radar_factory(num_vars, frame="circle"):
     return theta
 
 
-async def average_big_five(path):
-    from utils.file import read_json
-
-    audio_path = path + "audio.json"
-    video_path = path + "video.json"
-    task1 = asyncio.create_task(read_json(audio_path))
-    task2 = asyncio.create_task(read_json(video_path))
-    results = await asyncio.gather(task1, task2)
-    audio_dict = results[0]
-    video_dict = results[1]
+def average_big_five(bigfive):
     data = [
         [
             "Extroversion",
@@ -571,11 +316,11 @@ async def average_big_five(path):
             "The Big Five Personality Score",
             [
                 [
-                    math.ceil((audio_dict["e"] + video_dict["e"]) / 2),
-                    math.ceil((audio_dict["a"] + video_dict["a"]) / 2),
-                    math.ceil((audio_dict["c"] + video_dict["c"]) / 2),
-                    math.ceil((audio_dict["n"] + video_dict["n"]) / 2),
-                    math.ceil((audio_dict["o"] + video_dict["o"]) / 2),
+                    bigfive["e"],
+                    bigfive["a"],
+                    bigfive["c"],
+                    bigfive["n"],
+                    bigfive["o"],
                 ]
             ],
         ),
@@ -632,11 +377,267 @@ async def BigFiveComment(result, current_path):
     ].reset_index()
     # Hiển thị đánh giá
 
-    comments = []
-    for i in range(5):
-        comments.append(
-            df_final["Type"][i]
-            + " Comment: "
-            + to_str(df_final["Comment"][i]).replace("'", "")
-        )
-    return comments
+    # for i in range(5):
+    #     comments.append(
+    #         df_final["Type"][i]
+    #         + " Comment: "
+    #         + to_str(df_final["Comment"][i]).replace("'", "")
+    #     )
+    result = {}
+    result["ec"] = df_final["Comment"][0]
+    result["ac"] = df_final["Comment"][1]
+    result["cc"] = df_final["Comment"][2]
+    result["nc"] = df_final["Comment"][3]
+    result["oc"] = df_final["Comment"][4]
+    return result
+
+
+def fill_word(dictionary, current_path, folder_path):
+    document = Document(current_path + "template.docx")
+    paragraph_index = 3
+    if paragraph_index < len(document.paragraphs):
+        # Truy cập vào đoạn văn cần xem
+        paragraph = document.paragraphs[paragraph_index]
+        text = paragraph.text
+
+        paragraph.text = text[:9] + "{}".format(dictionary["employeeId"]) + text[9:]
+        # In ra nội dung của đoạn văn
+        text = paragraph.text
+
+        for run in paragraph.runs:
+            run.font.name = "Times New Roman"
+        for run in paragraph.runs:
+            run.font.size = Pt(11)
+            run.font.bold = True
+            words = text.split()
+            for word in words:
+                # Kiểm tra nếu từ là "ID001"
+                if word == "-":
+                    text = paragraph.add_run(
+                        "Người thực hiện phỏng vấn: " + dictionary["employeeName"] + " "
+                    )
+                    # Đặt chữ in đậm
+                    text.font.italic = True
+                    text.font.name = "Times New Roman"
+
+            # nó in nghiên cái ID luôn rồi a
+
+    # Load dữ liệu vào bảng
+
+    table_index = 1
+    table = document.tables[table_index]
+    for i in range(len(table.rows) - 1):
+        row_index = i + 1
+        column_index1 = 2
+        cell = table.cell(row_index, column_index1)
+        # Thêm dữ liệu vào ô
+        paragraph1 = cell.add_paragraph()
+        # Thêm dữ liệu từ dictionary
+        value = str(dictionary["question"][i]["value"])
+        run = paragraph1.add_run(value)
+        if cell.text.startswith(""):
+            cell.text = cell.text.lstrip()
+
+    for i in range(len(table.rows) - 1):
+        row_index = i + 1
+        column_index1 = 6
+        cell = table.cell(row_index, column_index1)
+        k = i + 25
+        # Thêm dữ liệu vào ô
+        paragraph1 = cell.add_paragraph()
+        # Thêm dữ liệu từ dictionary
+        value1 = str(dictionary["question"][k]["value"])
+        run = paragraph1.add_run((value1))
+        if cell.text.startswith(""):
+            cell.text = cell.text.lstrip()
+    # Định dạng dữ liệu
+    column_index = 2
+    for row in table.rows:
+        cell = row.cells[column_index]
+        cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+        cell.paragraphs[0].alignment = WD_ALIGN_VERTICAL.CENTER
+
+        # In đậm dữ liệu và căn giữa trong ô
+        for paragraph in cell.paragraphs:
+            for run in paragraph.runs:
+                run.bold = True
+                paragraph.alignment = WD_ALIGN_VERTICAL.CENTER
+                run.font.name = "Times New Roman"
+
+    column_index = 6
+    for row in table.rows:
+        cell = row.cells[column_index]
+        cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+        cell.paragraphs[0].alignment = WD_ALIGN_VERTICAL.CENTER
+
+        # In đậm dữ liệu và căn giữa trong ô
+        for paragraph in cell.paragraphs:
+            for run in paragraph.runs:
+                run.bold = True
+                paragraph.alignment = WD_ALIGN_VERTICAL.CENTER
+                run.font.name = "Times New Roman"
+    # Thêm hình ảnh
+    from docx.shared import Inches
+    from docx.shared import Cm
+
+    image_path = folder_path + "chart.png"
+    tables = document.tables
+    table_index = 2
+    row_index = 0
+    column_index = 0
+    table = tables[table_index]
+    cell = table.cell(row_index, column_index)
+    paragraph2 = cell.paragraphs[0]
+    run = paragraph2.add_run()
+    run.add_picture(image_path, width=Cm(5), height=Cm(5))
+    paragraph2.alignment = 1
+
+    # Thêm chỉ số
+
+    table_index = 2
+    column_index = 2
+    # Openness
+    row_index = 1
+    table = tables[table_index]
+    cell = table.cell(row_index, column_index)
+
+    # Thêm chỉ số từ dictionary
+    o = str(dictionary["o"])
+    o += "/40"
+    paragraph3 = cell.add_paragraph()
+    run = paragraph3.add_run(o)
+    if cell.text.startswith(""):
+        cell.text = cell.text.lstrip()
+    # Conscientiousness
+    row_index = 2
+    table = tables[table_index]
+    cell = table.cell(row_index, column_index)
+    # Thêm chỉ số từ dictionary
+    c = str(dictionary["c"])
+    c += "/40"
+    paragraph3 = cell.add_paragraph()
+    run = paragraph3.add_run(c)
+    if cell.text.startswith(""):
+        cell.text = cell.text.lstrip()
+    # Extroversion
+    row_index = 3
+    table = tables[table_index]
+    cell = table.cell(row_index, column_index)
+    # Thêm chỉ số từ dictionary
+    e = str(dictionary["e"])
+    e += "/40"
+    paragraph3 = cell.add_paragraph()
+    run = paragraph3.add_run(e)
+    if cell.text.startswith(""):
+        cell.text = cell.text.lstrip()
+    # Agreeableness
+    row_index = 4
+    table = tables[table_index]
+    cell = table.cell(row_index, column_index)
+    # Thêm chỉ số từ dictionary
+    a = str(dictionary["a"])
+    a += "/40"
+    paragraph3 = cell.add_paragraph()
+    run = paragraph3.add_run(a)
+    if cell.text.startswith(""):
+        cell.text = cell.text.lstrip()
+    # Neuroticism
+    row_index = 5
+    table = tables[table_index]
+    cell = table.cell(row_index, column_index)
+
+    # Thêm chỉ số từ dictionary
+    n = str(dictionary["n"])
+    n += "/40"
+    paragraph3 = cell.add_paragraph()
+    run = paragraph3.add_run(n)
+    if cell.text.startswith(""):
+        cell.text = cell.text.lstrip()
+
+    column_index = 2
+    for row in table.rows:
+        cell = row.cells[column_index]
+        cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+        cell.paragraphs[0].alignment = WD_ALIGN_VERTICAL.CENTER
+
+        # In đậm dữ liệu và căn giữa trong ô
+        for paragraph in cell.paragraphs:
+            for run in paragraph.runs:
+                run.bold = True
+                paragraph.alignment = WD_ALIGN_VERTICAL.CENTER
+                run.font.name = "Times New Roman"
+
+    # Thêm kết luận
+
+    # Lấy đoạn Extroversion trong docx
+    paragraph_index = 8
+    paragraph = document.paragraphs[paragraph_index]
+    # Lấy Extroversion Comment trong txt
+
+    # Thêm kết luận từ dictionary
+    ec = dictionary["ec"]
+    text = paragraph.add_run(ec)
+    for run in paragraph.runs:
+        run.font.name = "Times New Roman"
+
+    # Lấy đoạn Conscientiousness trong docx
+    paragraph_index = 9
+    paragraph = document.paragraphs[paragraph_index]
+    # Lấy Conscientiousness Comment trong txt
+
+    # Thêm kết luận từ dictionary
+    cc = dictionary["cc"]
+    text = paragraph.add_run(cc)
+    for run in paragraph.runs:
+        run.font.name = "Times New Roman"
+
+    # Lấy đoạn Openness to Experience trong docx
+    paragraph_index = 10
+    paragraph = document.paragraphs[paragraph_index]
+    # Lấy Openness to Experience Comment trong txt
+
+    # Thêm kết luận từ dictionary
+    oc = dictionary["oc"]
+    text = paragraph.add_run(oc)
+    for run in paragraph.runs:
+        run.font.name = "Times New Roman"
+
+    # Lấy đoạn Agreeableness trong docx
+    paragraph_index = 11
+    paragraph = document.paragraphs[paragraph_index]
+    # Lấy Openness to Agreeableness Comment trong txt
+
+    # Thêm kết luận từ dictionary
+    ac = dictionary["ac"]
+    text = paragraph.add_run(ac)
+    for run in paragraph.runs:
+        run.font.name = "Times New Roman"
+
+    # Lấy đoạn Neuroticism trong docx
+    paragraph_index = 12
+    paragraph = document.paragraphs[paragraph_index]
+    # Lấy Openness to Neuroticism Comment trong txt
+
+    # Thêm kết luận từ dictionary
+    nc = dictionary["ec"]
+    text = paragraph.add_run(nc)
+    for run in paragraph.runs:
+        run.font.name = "Times New Roman"
+    # Thêm Ngày Tháng Năm Hiện tại
+    paragraph_index = 13
+    paragraph = document.paragraphs[paragraph_index]
+    # Ngày tháng năm hiện tại
+    day = datetime.now().day
+    month = datetime.now().month
+    year = datetime.now().year
+
+    text = paragraph.text
+    # Tạo chuỗi ngày tháng năm
+    ngay_thang_nam = f"{day} tháng {month} năm {year}"
+    paragraph.text += ngay_thang_nam
+    for run in paragraph.runs:
+        run.font.name = "Times New Roman"
+    for run in paragraph.runs:
+        run.font.size = Pt(11)
+
+    document.save(folder_path + "report.docx")

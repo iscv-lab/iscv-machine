@@ -225,10 +225,6 @@ def to_result_json(Result: list, file_result_path: str):
         "o": int(Result[4]),
         # "oc": (Comment[4].replace("Openness to Experience Comment: ", "")),
     }
-
-    # Save the data as JSON
-    with open(file_result_path, "w", encoding="utf-8") as file:
-        json.dump(data, file, allow_nan=False)
     return data
 
 
