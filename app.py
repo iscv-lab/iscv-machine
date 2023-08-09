@@ -9,14 +9,25 @@ import os
 from dotenv import load_dotenv
 import glob
 from flask_cors import CORS
+import asyncio
+import subprocess
+import threading
+import logging
+from utils.file import remove_files_async
+from utils.log import thread_log
+from tools.job.recommend import load_recommend_model
+
 
 load_dotenv()  # Load environment variables from .env file
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))  # This is your Project Root
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))  # This is your Project Root
 app = Flask(__name__)
 CORS(app)
 app.static_folder = "public"
+
+data_recommend, model_recommend = load_recommend_model()
 
 
 @app.route("/data", methods=["POST"])
@@ -29,7 +40,7 @@ def post_data():
     request_data = request.get_json()
     # Extract the string "text" from the request body
     text = request_data.get("text")
-    print(text)
+
     response = {"message": "Data received successfully"}
     return jsonify(response), 200
 
@@ -118,81 +129,198 @@ def generate_text():
     return jsonify(text), 200
 
 
-@app.route("/big_five", methods=["GET"])
-def big_five():
-    from utils.video import (
-        download_webm,
-        convert_webm_to_mp4,
-        convert_webm_to_mp3,
-        split_video,
-    )
+@app.route("/big_five/start", methods=["GET"])
+def big_five_start():
+    def run_subprocess(session_id):
+        thread_log()
+        # load_dotenv()
+        from utils.video import (
+            download_webm,
+            convert_webm_to_mp4,
+            convert_webm_to_mp3,
+            split_video,
+        )
 
-    from tools.big_five.index import handle_big_five
-    from utils.text import download_txt
-    from tools.big_five.report import handle_report
+        from utils.text import download_txt
 
-    employeeid = request.args.get("employee_id")
-    employeename = request.args.get("employee_name")
-    interviewid = request.args.get("interview_id")
-    video_url = (
-        f"{os.getenv('NODEJS_ENDPOINT')}public/interview/{interviewid}/video.webm"
-    )
-    qa_url = f"{os.getenv('NODEJS_ENDPOINT')}public/interview/{interviewid}/qa.txt"
+        try:
+            video_url = f"{os.getenv('NODEJS_ENDPOINT')}public/interview/{session_id}/video.webm"
+            qa_url = (
+                f"{os.getenv('NODEJS_ENDPOINT')}public/interview/{session_id}/qa.txt"
+            )
 
-    destPath = f"./public/interview/{interviewid}/"
+            destPath = f"./public/interview/{session_id}/"
 
-    # Check if the folder already exists
+            # Check if the folder already exists
 
-    if not os.path.exists(destPath):
-        # Create the folder
-        os.makedirs(destPath)
-        print("Folder created successfully.")
-    else:
-        file_paths = glob.glob(os.path.join(destPath, "*"))
+            if not os.path.exists(destPath):
+                # Create the folder
+                os.makedirs(destPath)
+                print("Folder created successfully.")
+            else:
+                file_paths = glob.glob(os.path.join(destPath, "*"))
 
-        # Iterate through each file and remove it
-        for file_path in file_paths:
-            os.remove(file_path)
-        print("Folder already exists.")
+                # Iterate through each file and remove it
+                for file_path in file_paths:
+                    os.remove(file_path)
+                print("Folder already exists.")
 
-    executor = ThreadPoolExecutor()
-    # Download the WebM file
-    webm_task = executor.submit(
-        partial(download_webm, video_url, destPath + "video.webm")
-    )
-    qa_task = executor.submit(partial(download_txt, qa_url, destPath, "qa.txt"))
-    webm_task.result()
-    qa_task.result()
-    # Create a thread pool executor
+            executor = ThreadPoolExecutor()
+            # Download the WebM file
+            webm_task = executor.submit(
+                partial(download_webm, video_url, destPath + "video.webm")
+            )
+            qa_task = executor.submit(partial(download_txt, qa_url, destPath, "qa.txt"))
+            webm_task.result()
+            qa_task.result()
+            # Create a thread pool executor
 
-    # Submit tasks for conversion of WebM to MP4 and MP3
-    mp4_task = executor.submit(
-        partial(convert_webm_to_mp4, destPath + "video.webm", destPath + "video.mp4")
-    )
-    mp3_task = executor.submit(
-        partial(convert_webm_to_mp3, destPath + "video.webm", destPath + "audio.mp3")
-    )
+            # Submit tasks for conversion of WebM to MP4 and MP3
+            mp4_task = executor.submit(
+                partial(
+                    convert_webm_to_mp4, destPath + "video.webm", destPath + "video.mp4"
+                )
+            )
+            # mp3_task = executor.submit(
+            #     partial(
+            #         convert_webm_to_mp3, destPath + "video.webm", destPath + "audio.mp3"
+            #     )
+            # )
 
-    # Wait for the tasks to complete
-    mp4_task.result()
-    mp3_task.result()
+            # Wait for the tasks to complete
+            mp4_task.result()
+            # mp3_task.result()
 
-    # Split the video
-    split_video(
-        destPath + "video.mp4", destPath + "introduction.mp4", destPath + "main.mp4", 90
-    )
+            # Split the video
+            split_video(
+                destPath + "video.mp4",
+                destPath + "introduction.mp4",
+                destPath + "main.mp4",
+                15,
+            )
+            print(
+                f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/started?session_id={session_id}"
+            )
+            response = requests.get(
+                f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/started?session_id={session_id}"
+            )
+            if response.status_code == 200:
+                print("Response:", response.json())
+            else:
+                print(
+                    "start POST request failed with status code:", response.status_code
+                )
+        except Exception as e:
+            print(e)
 
-    result = handle_big_five(interviewid)
-    handle_report(employeeid, employeename, interviewid)
-    return jsonify(result), 200
+    session_id = request.args.get("session_id")
+    subprocess_thread = threading.Thread(target=run_subprocess, args=(session_id,))
+    subprocess_thread.start()
+    return jsonify("approved"), 200
+
+
+@app.route("/big_five/audio", methods=["GET"])
+def big_five_audio():
+    from tools.big_five.audio import handle_big_five_audio
+
+    def run_subprocess(session_id):
+        thread_log()
+        try:
+            result = handle_big_five_audio(session_id)
+            response = requests.post(
+                f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/audio?session_id={session_id}",
+                json=result,
+            )
+            if response.status_code != 200:
+                print(
+                    "audio POST request failed with status code:", response.status_code
+                )
+        except Exception as e:
+            print(e)
+
+    session_id = request.args.get("session_id")
+    subprocess_thread = threading.Thread(target=run_subprocess, args=(session_id,))
+    subprocess_thread.start()
+    return jsonify("audio_approved"), 200
 
 
 @app.route("/big_five/video", methods=["GET"])
 def big_five_video():
-    from tools.big_five.bigfive_video import handle_video
-    handle_video()
+    session_id: int = request.args.get("session_id")
+
+    def run_subprocess(session_id):
+        # Configure logging for the subprocess
+        thread_log()
+        try:
+            response = requests.get(
+                f"{os.getenv('VIDEO_ENDPOINT')}get_video?session_id={session_id}"
+            )
+            if response.status_code == 200:
+                result = response.json()
+                callback = requests.post(
+                    f"{os.getenv('NODEJS_ENDPOINT')}python/big_five/video?session_id={session_id}",
+                    json=result,
+                )
+                if callback.status_code != 200:
+                    print(
+                        "video POST request failed with status code:",
+                        response.status_code,
+                    )
+            else:
+                print(
+                    "mini POST request failed with status code:", response.status_code
+                )
+        except Exception as e:
+            print(e)
+        # Run the subprocess in a separate thread
+
+    subprocess_thread = threading.Thread(target=run_subprocess, args=(session_id,))
+    subprocess_thread.start()
+    return jsonify("video_approved"), 200
+
+
+@app.route("/big_five/report", methods=["POST"])
+async def big_five_report():
+    from tools.big_five.report import handle_report
+
+    print("start report")
+    data = request.get_json()
+    await handle_report(data)
+    return jsonify("success"), 200
+
+
+@app.route("/big_five/clean", methods=["GET"])
+async def big_five_clean():
+    session_id: int = request.args.get("session_id")
+    folder_path = f"{ROOT_DIR}/public/interview/{session_id}/"
+    file_paths = [
+        folder_path + "chat.png",
+        folder_path + "introductrion.mp4",
+        folder_path + "main.mp4",
+        folder_path + "qa.txt",
+        folder_path + "report.docx",
+        folder_path + "video.mp4",
+        folder_path + "video.webm",
+    ]
+
+    await remove_files_async(file_paths)
+
+    return jsonify("success"), 200
+
+
+@app.route("/job/recommend", methods=["POST"])
+async def job_recommend():
+    from tools.job.recommend import recommended_jobs
+
+    data = request.get_json()
+    result = recommended_jobs(data["skills"], data_recommend, model_recommend)
+    return jsonify(result), 200
+
+
+@app.route("/test", methods=["GET"])
+def test():
     return jsonify("hello"), 200
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="127.0.0.1", port=4002, debug=True)
